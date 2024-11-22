@@ -1,0 +1,22 @@
+{
+    "name": "vms-apis-services",
+    "version": "1.0.0",
+    "description": "VisitorsManagement",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "axios": "^1.7.2",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "exceljs": "^4.4.0",
+        "express": "^4.19.2",
+        "mssql": "^10.0.2",
+        "multer": "^1.4.5-lts.1",
+        "nodemailer": "^6.9.16",
+        "swagger-ui-express": "^5.0.1",
+        "tedious": "^18.1.0",
+        "winston": "^3.14.2"
+    }
+}
