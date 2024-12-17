@@ -28,9 +28,13 @@ app.use('/api/contractor', contractorRoutes);
 //     console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
 // });
 
-app.listen(PORT, '192.168.0.182', () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Swagger docs available at http://192.168.0.182:4000/api-docs`);
+// app.listen(PORT, '192.168.0.182', () => {
+//     console.log(`Server is running on port ${PORT}`);
+//     console.log(`Swagger docs available at http://192.168.0.182:4000/api-docs`);
+// });
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
 });
 //192.168.253.161
 /*
