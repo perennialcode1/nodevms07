@@ -27,6 +27,37 @@ class exeQuery {
             .catch(callback);
     }
     //#endregion ManageRequestPass
+
+    //#region ManageLaborQRPass
+    SpManageLaborQRPass(TotJson, callback) {
+        if (!TotJson) {
+            return callback(new Error('TotJson is undefined'));
+        }
+
+        const { orgid, userid, Time, Date, QRCode, ContractorId } = TotJson;
+        
+        // Validate required fields
+        if (!Time || !Date || !QRCode || !ContractorId) {
+            return callback(new Error('Missing required fields: Time, Date, QRCode, ContractorId'));
+        }
+
+        const sqlQuery = `
+            EXEC [dbo].[ManageLaborQRPass]
+                @Time = '${Time}',
+                @UserId = '${userid}',
+                @Date = '${Date}',
+                @QRCode = '${QRCode.replace(/'/g, "''")}',
+                @ContractorId = '${ContractorId}',
+                @OrgId = '${orgid}'
+        `;
+        
+        console.log(sqlQuery);
+        dbUtility.executeQuery(sqlQuery)
+            .then(results => callback(null, results))
+            .catch(callback);
+    }
+    //#endregion ManageLaborQRPass
+
     
     
 

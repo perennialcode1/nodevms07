@@ -1,95 +1,75 @@
 const sql = require('mssql');
-require('dotenv').config();
+require('dotenv').config(); // Load Environment Variables
 
-const config = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER,
-    database: process.env.DB_DATABASE,
-    port: parseInt(process.env.DB_PORT),
+const sqlConfig = {
+    user: process.env[`DB_USER`],
+    password: process.env[`DB_PASSWORD`],
+    server: process.env[`DB_SERVER`],
+    database: process.env[`DB_DATABASE`],
+    connectionTimeout: 30000, 
+    requestTimeout: 30000,   
     options: {
         encrypt: true,
-        trustServerCertificate: true, // Change to true for local dev
+        trustServerCertificate: true
     },
+    driver: 'tedious',
+    pool: {
+		max: 10, // Maximum number of connections in the pool
+		min: 0,  // Minimum number of connections in the pool
+		idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
+	  },
 };
-
-let pool;
-
-async function initializePool() {
-    try {
-        if (!pool) {
-            pool = await sql.connect(config);
-            console.log('Database connection pool created.');
-        }
-    } catch (err) {
-        console.error('Error initializing the connection pool:', err);
-        throw err;
-    }
-}
+// Create a connection pool
+const poolPromise = new sql.ConnectionPool(sqlConfig)
+  .connect()
+  .then(pool => {
+    console.log('Connected to SQL Server');
+    //console.log(`Swagger docs available at http://192.168.1.64:4000/api-docs`);
+    return pool;
+  })
+  .catch(err => {
+    console.error('Database Connection Failed! Bad Config:', err);
+    throw err;
+  });
 
 async function executeQuery(query) {
     try {
-        await initializePool(); // Ensure the pool is initialized
+        const pool = await poolPromise; // Get the pool
         const result = await pool.request().query(query);
-        console.log(query);
+        console.log(result);
         return result.recordset;
     } catch (err) {
         console.error('Error executing query:', err);
         throw err;
-    }
+    } 
 }
 
-// Optionally expose a method to close the pool
-async function closePool() {
-    if (pool) {
-        await pool.close();
-        pool = null;
-        console.log('Database connection pool closed.');
-    }
+async function executeQueryrowsAffected(query) {
+  try {
+      const pool = await poolPromise; // Get the pool
+      const result = await pool.request().query(query);
+      return result.rowsAffected;
+  } catch (err) {
+      console.error('Error executing query:', err);
+      throw err;
+  } 
 }
+
+
+// Closing the pool when your application exits (if needed)
+process.on('exit', async () => {
+    try {
+      const pool = await poolPromise;
+      await pool.close();
+      console.log('Connection pool closed.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error closing the pool:', err);
+      process.exit(1);
+    }
+  });
 
 module.exports = {
     executeQuery,
-    closePool,
+    executeQueryrowsAffected
 };
-
-/*
-const sql = require('mssql');
-require('dotenv').config();
-
-const config = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER,
-    database: process.env.DB_DATABASE,
-    port: parseInt(process.env.DB_PORT),
-    options: {
-        encrypt: true,
-        trustServerCertificate: true, // Change to true for local dev
-    },
-};
-
-async function executeQuery(query) {
-    try {
-        console.log("hiop");
-        const pool = await sql.connect(config);
-        const result = await pool.request().query(query);
-        console.log(query);
-        return result.recordset;
-    } catch (err) {
-        console.error('Error executing query:', err);
-        throw err;
-    } finally {
-        await sql.close();
-    }
-}
-
-
-
-
-
-module.exports = {
-    executeQuery
-    
-};
-*/

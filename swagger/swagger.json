@@ -3,7 +3,7 @@
     "info": {
       "title": "VMS API",
       "version": "1.0.0",
-      "description": "Visitors management System API's"
+      "description": "This Swagger documentation provides a detailed API reference for the Visitor Management System, enabling seamless integration of visitor entry and exit workflows. It covers endpoints for security, employees, HR, and superadmin roles, facilitating pre-booking, QR code generation, approvals, tracking, and reporting functionalities. Additionally, it includes features for automated email notifications, role-based access control, and comprehensive visitor tracking."
     },
     "paths": {
       "/api/auth/send-email": {
@@ -225,7 +225,7 @@
                         },
                         "VisitorType": {
                           "type": "string",
-                          "example": "Business",
+                          "example": 1,
                           "description": "Type of visitor"
                         },
                         "Status": {
@@ -336,6 +336,83 @@
           }
         }
       },
+      "/api/contractor/ManageLaborQRPass": {
+        "post": {
+          "tags": ["Labor QR Pass"],
+          "summary": "Manage labor QR pass (Check-in or Check-out)",
+          "description": "This endpoint allows users to manage labor QR pass activities such as Check-in or Check-out based on the given time and date.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgid": {
+                      "type": "integer",
+                      "example": 9333,
+                      "description": "The organization ID"
+                    },
+                    "userid": {
+                      "type": "integer",
+                      "example": 1,
+                      "description": "The user ID initiating the request"
+                    },
+                    "Time": {
+                      "type": "string",
+                      "format": "time",
+                      "example": "08:30:00",
+                      "description": "The time of Check-in or Check-out"
+                    },
+                    "Date": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2024-11-28",
+                      "description": "The date of the operation"
+                    },
+                    "QRCode": {
+                      "type": "string",
+                      "example": "QR001",
+                      "description": "QR code of the labor"
+                    },
+                    "ContractorId": {
+                      "type": "integer",
+                      "example": 1,
+                      "description": "The contractor ID"
+                    }
+                  },
+                  "required": ["orgid", "userid", "Time", "Date", "QRCode", "ContractorId"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Labor QR pass successfully managed (Check-in or Check-out)",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Check-in/Check-out recorded successfully"
+                      },
+                      "status": {
+                        "type": "string",
+                        "example": "Success"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            
+          
+          }
+        }
+      },
       "/api/auth/getReqPass": {
         "get": {
           "tags": ["Request Pass"],
@@ -437,11 +514,218 @@
             }
           }
         }
+      },
+      "/api/auth/PassApproval&Email": {
+        "post": {
+    "tags": ["PassApproval&Email"],
+    "summary": "Approve Pass and Send Email",
+    "description": "Updates the status of a pass request and optionally sends an email if the status is 'Approve'.",
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "RequestId": {
+                "type": "string",
+                "example": 1,
+                "description": "The unique ID of the request"
+              },
+              "Status": {
+                "type": "string",
+                "example": "Approve",
+                "description": "The status to update (e.g., 'Approve', 'Reject')"
+              },
+              "UserId": {
+                "type": "string",
+                "example": 1,
+                "description": "ID of the user updating the status"
+              },
+              "to": {
+                "type": "string",
+                "example": "",
+                "description": "Recipient email address (required if Status is 'Approve')"
+              },
+              "subject": {
+                "type": "string",
+                "example": "Your Pass Request Approved",
+                "description": "Email subject (required if Status is 'Approve')"
+              },
+              "text": {
+                "type": "string",
+                "example": "Your pass request has been approved.",
+                "description": "Plain text content of the email"
+              },
+              "html": {
+                "type": "string",
+                "example": "<h1>Congratulations!</h1><p>Your pass request has been approved.</p>",
+                "description": "HTML content of the email"
+              }
+            },
+            "required": ["RequestId", "Status", "UserId"]
+          }
+        }
       }
+    },
+    "responses": {
+      "200": {
+        "description": "Request processed successfully",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Status updated successfully"
+                },
+                "Status": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "emailResponse": {
+                  "type": "string",
+                  "example": "250 2.0.0 OK",
+                  "description": "Response from the email service (if email was sent)"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Bad Request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Missing required fields"
+                },
+                "Status": {
+                  "type": "boolean",
+                  "example": false
+                }
+              }
+            }
+          }
+        }
+      }
+      
     }
   }
   
+      },
+      "/api/auth/AttendeInActive": {
+        "get": {
+          "tags": ["Request Pass"],
+          "summary": "Make an Attendee Inactive",
+          "description": "Marks an attendee as inactive in the system based on their ID.",
+          "parameters": [
+            {
+              "name": "AttendeId",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "example": 1
+              },
+              "description": "The ID of the attendee to make inactive."
+            },
+            {
+              "name": "UserId",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "example": 1
+              },
+              "description": "The ID of the user performing the operation."
+            }
+          ]
 
+        }
+        
+
+      },
+      "/api/auth/QrCheckinOrCheckOut": {
+        "post": {
+          "tags": ["Check-In/Check-Out"],
+          "summary": "Update Check-In or Check-Out Time",
+          "description": "Updates the Check-In or Check-Out time (MeetingDate should be PresentDate).",
+          "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "OrgId": {
+                    "type": "integer",
+                    "example": 9333,
+                    "description": "The organization ID"
+                  },
+                  "IncNo": {
+                    "type": "string",
+                    "example": "REQ-1002",
+                    "description": "The unique incremental number for the request"
+                  },
+                  "UserId": {
+                    "type": "string",
+                    "example": "1",
+                    "description": "The user ID of the person performing the check-in or check-out"
+                  },
+                  "currentTime": {
+                    "type": "string",
+                    "example": "13:47:12",
+                    "description": "currenttime"
+                  }
+                },
+                "required": ["OrgId", "IncNo", "UserId", "currentTime"]
+              }
+            }
+          }
+          },
+          "responses": {
+            "200": {
+              "description": "Check-In/Check-Out time updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Check-in/out time updated successfully"
+                      },
+                      "time": {
+                        "type": "string",
+                        "example": "15:45:30",
+                        "description": "The time that was recorded"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          
+          }
+      }
+      }
+  
+    }
+}
+
+
+
+  
+
+
+
+      
  
   
   
