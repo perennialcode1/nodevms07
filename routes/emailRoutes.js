@@ -19,8 +19,46 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+//#region Menu
 
+router.get('/UserPermissions', (req, res) => {
+    const {OrgId, RoleId, ModuleId } = req.query;
+    const data = { "OrgId": OrgId, "RoleId":RoleId, "ModuleId": ModuleId };
+    handleRecord(req, res, data, OperationEnums().RSECURSEL);
+});
 
+router.get('/getmenu', (req, res) => {
+    const {OrgId, RoleId } = req.query;
+    const JsonData = { "OrgId": OrgId, "RoleId":RoleId };
+    exeQuery.GetMenu(JsonData, (error, results) => {
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+        //console.log(results);
+        exeQuery.GetMenuNodes(results, (err, MenuList) => {
+            if (err) {
+                return res.status(500).json({ error: err.message, Status: false });
+            }
+            res.json({
+                ResultData: MenuList,
+                Status: true
+            });
+        });
+    });
+});
+router.post('/UpdateUserMenu', (req, res) => {
+    const UpdateJson = req.body; 
+     exeQuery.SpSetRoleSecurity(UpdateJson, (error, results) => {
+        if (error) {
+           res.status(400).send({ error: error.message });
+          return;
+       }
+       res.status(200).send(results);
+    });      
+});
+//#endregion Menu
+
+//#region Users
 router.get('/SignIn', (req, res) => {
 try {
     const data = req.query;
@@ -31,6 +69,50 @@ try {
     res.status(500).json({ error: 'Error While SIGNIN' });
 }
 });
+
+router.post('/POSTUsers', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().ADDUSER);
+});
+
+router.post('/UPDTUsers', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().UPDTUSER);
+});
+
+router.get('/getUsers', (req, res) => {
+    const data = req.query; 
+    handleRecord(req, res, data, OperationEnums().GETUSERS);
+});
+router.post('/UsersInActive', async (req, res) => {
+    const data = req.body; 
+    handleRecord(req, res, data, OperationEnums().DELTUSER);
+});
+
+router.get('/getRoles', (req, res) => {
+    const data = req.query; 
+    handleRecord(req, res, data, OperationEnums().GETROLES);
+});
+//#endregion Users
+
+//#region Manual Check IN/OUT
+router.post('/PassCheckIn', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().PASSCHECKIN);
+});
+router.post('/PassCheckOut', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().PASSCHECKOUT);
+});
+router.post('/LaborCheckIn', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().QRCHECKIN);
+});
+router.post('/LaborCheckOut', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().QRCHECKOUT);
+});
+//#endregion Manual Check IN/OUT
 
 // Email Service
 router.post('/send-email', async (req, res) => {
@@ -84,14 +166,70 @@ router.get('/getReqPass', (req, res) => {
     handleRecord(req, res, data, OperationEnums().GETREQPASS);
 });
 
+router.post('/getReqPasswithFilters', async (req, res) => {
+    try {
+        // Destructuring parameters from request body
+        const { OrgId, MeetingDate, VisitorType, Status, AutoIncNo } = req.body;
+
+        // Start building the query
+        let query = `SELECT RequestId, VisitorName, RequestDate, 
+                      FORMAT(CAST(MeetingDate AS DATE), 'dd-MM-yyyy') AS FormattedMeetingDate, 
+                      NoOfMembers, VisitorType, Status, AutoIncNo, VehicleInfo, Email, Mobile, Remarks 
+                      FROM dbo.RequestPass 
+                      WHERE OrgId = ${OrgId} 
+                      AND IsActive = 1`;
+
+        // Dynamically adding filters based on the request body
+        if (FromDate != 0) {
+            query += ` AND CAST(MeetingDate AS DATE) BETWEEN '${FromDate}' AND '${ToDate}'`; // Filter for MeetingDate
+        }
+        if (VisitorType != 0) {
+            query += ` AND VisitorType = ${VisitorType}`; // Filter for VisitorType
+        }
+
+        if (Status != 0) {
+            query += ` AND Status = '${Status}'`; // Filter for Status
+        }
+
+        if (AutoIncNo != 0) {
+            query += ` AND AutoIncNo = '${AutoIncNo}'`; // Filter for AutoIncNo
+        }
+
+        // Append ORDER BY clause
+        query += ` ORDER BY RequestId DESC`;
+
+        console.log('Generated Query:', query); // For debugging or logging the query
+
+        // Execute query
+        const results = await dbUtility.executeQuery(query);
+
+        // Sending response based on results
+        if (results && results.length > 0) {
+            res.status(200).json(results);
+        } else {
+            res.status(404).json({ message: 'No records found', Status: false });
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ message: 'Error fetching data', Status: false });
+    }
+});
+
+
+
 router.get('/getReqPassById', (req, res) => {
     const data = req.query; 
     handleRecord(req, res, data, OperationEnums().GETREQPASSBYID);
 });
-router.get('/AttendeInActive', (req, res) => {
-    const data = req.query; 
+router.post('/MOMSubmit', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().MOMSUBMIT);
+});
+router.post('/AttendeInActive', async (req, res) => {
+    const data = req.body; 
     handleRecord(req, res, data, OperationEnums().ADETAIL);
 });
+
 //#endregion ManageRequestPass
 
 
@@ -240,5 +378,92 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
 
 
 //#endregion QrCheckin
+
+
+//#region Dashboard
+
+router.get('/VMSDashboard', async (req, res) => {
+    try {
+        const { OrgId } = req.query;
+        
+        const RecentSuppliersQuery = `
+        select top 5 VisitorName, CAST(MeetingDate AS Date) as MeetingDate from dbo.RequestPass
+        where OrgId = ${OrgId} AND Isactive = 1 AND VisitorType = 1
+        ORDER BY RequestId DESC
+        `;
+        const RecentCustomersQuery = `
+        select top 5 VisitorName, CAST(MeetingDate AS Date) as MeetingDate from dbo.RequestPass
+        where OrgId = ${OrgId} AND Isactive = 1 AND VisitorType = 2
+        ORDER BY RequestId DESC
+        `;
+
+        const SuppliersCountQuery = `
+        SELECT COUNT(*) AS SuppliersCount
+        FROM dbo.RequestPass 
+        WHERE CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE) AND OrgId = ${OrgId}
+        AND VisitorType = 1;
+        `;
+        const CustomersCountQuery = `
+        SELECT COUNT(*) AS CustomersCount
+        FROM dbo.RequestPass 
+        WHERE CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE) AND OrgId = ${OrgId}
+        AND VisitorType = 2;
+        `;
+        const CLsCOuntQuery = `
+        SELECT SUM(RequiredPasses) AS CLsCOunt
+        FROM dbo.Contractors
+        WHERE OrgId = ${OrgId}
+        AND ValidStartDt <= CAST(GETDATE() AS DATE)
+        AND ValidEndDt >= CAST(GETDATE() AS DATE);
+        `;
+        const MonthWiseVisitorsCountQuery = `
+        SELECT DATENAME(MONTH, MeetingDate) AS [MonthName],COUNT(RequestId) AS [VisitorCount]
+        FROM [dbo].[RequestPass] WHERE YEAR(MeetingDate) = YEAR(GETDATE()) 
+        GROUP BY DATENAME(MONTH, MeetingDate), MONTH(MeetingDate) 
+        ORDER BY MONTH(MeetingDate); 
+        `;
+        const MonthWiseCLsCountQuery = `
+        SELECT DATENAME(MONTH, [Date]) AS [MonthName],COUNT(Id) AS [CLsCount]
+        FROM [dbo].[LaborQRPass] WHERE YEAR(Date) = YEAR(GETDATE()) 
+        GROUP BY DATENAME(MONTH, Date), MONTH(Date) 
+        ORDER BY MONTH(Date); 
+        `;
+       
+
+        const [
+            RecentSuppliers,
+            RecentCustomers,
+            TodaySuppliersCount,
+            TodayCustomersCount,
+            TodayCLsCount,
+            MonthWiseVisitorsCount,
+            MonthWiseCLsCount
+        ] = await Promise.all([
+            dbUtility.executeQuery(RecentSuppliersQuery),  
+            dbUtility.executeQuery(RecentCustomersQuery),
+            dbUtility.executeQuery(SuppliersCountQuery),
+            dbUtility.executeQuery(CustomersCountQuery),
+            dbUtility.executeQuery(CLsCOuntQuery),
+            dbUtility.executeQuery(MonthWiseVisitorsCountQuery),
+            dbUtility.executeQuery(MonthWiseCLsCountQuery)
+            
+           
+        ]);
+        res.json({
+            RecentSuppliers,
+            RecentCustomers,
+            TodaySuppliersCount,
+            TodayCustomersCount,
+            TodayCLsCount,
+            MonthWiseVisitorsCount,
+            MonthWiseCLsCount
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+//#endregion Dashboard
 
 module.exports = router;

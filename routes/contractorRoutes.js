@@ -85,6 +85,11 @@ router.post('/POSTContractors', async (req, res)=>{
     handleRecord(req, res, data, OperationEnums().CONTINSRT);
 });
 
+router.post('/UPDTContractors', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().UPDTCONTRACT);
+});
+
 router.get('/getContractors', (req, res) => {
     const data = req.query; 
     handleRecord(req, res, data, OperationEnums().GETCONTRACT);

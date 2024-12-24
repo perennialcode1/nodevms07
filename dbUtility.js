@@ -36,7 +36,7 @@ async function executeQuery(query) {
     try {
         const pool = await poolPromise; // Get the pool
         const result = await pool.request().query(query);
-        console.log(result);
+        //console.log(result);
         return result.recordset;
     } catch (err) {
         console.error('Error executing query:', err);
@@ -55,6 +55,34 @@ async function executeQueryrowsAffected(query) {
   } 
 }
 
+async function executeForMultipleDS(query) {
+  try {
+      const pool = await poolPromise; // Get the pool
+      const result = await pool.request().query(query);
+       // Handle multiple result sets
+       const datasets = result.recordsets;
+       // Log the datasets
+       // Define dataset names
+      const datasetNames = ['data', 'headers', 'reportinfo']; // Adjust based on your stored procedure's result sets
+
+      // Initialize an object to store the named datasets
+      const namedDatasets = {};
+
+      // Assign each dataset to its corresponding name
+      result.recordsets.forEach((dataset, index) => {
+          if (datasetNames[index]) {
+              namedDatasets[datasetNames[index]] = dataset;
+          } else {
+              namedDatasets[`UnnamedDataset${index + 1}`] = dataset;
+          }
+      });
+      // return the named datasets
+      return namedDatasets;
+  } catch (err) {
+      console.error('Error executing query:', err);
+      throw err;
+  } 
+}
 
 // Closing the pool when your application exits (if needed)
 process.on('exit', async () => {
@@ -71,5 +99,6 @@ process.on('exit', async () => {
 
 module.exports = {
     executeQuery,
+    executeForMultipleDS,
     executeQueryrowsAffected
 };
