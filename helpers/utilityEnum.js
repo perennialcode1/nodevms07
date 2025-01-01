@@ -20,7 +20,8 @@ function OperationEnums() {
         QRCHECKOUT:18,
         GETROLES:19,
         RSECURSEL:20,
-        GETREPORTHEAD:21
+        GETREPORTHEAD:21,
+        LABORCHECKINS: 22
     };
 
     return Operations;
