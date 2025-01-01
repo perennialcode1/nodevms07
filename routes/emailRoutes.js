@@ -169,15 +169,15 @@ router.get('/getReqPass', (req, res) => {
 router.post('/getReqPasswithFilters', async (req, res) => {
     try {
         // Destructuring parameters from request body
-        const { OrgId, MeetingDate, VisitorType, Status, AutoIncNo } = req.body;
+        const { OrgId, FromDate, VisitorType, Status, AutoIncNo, ToDate } = req.body;
 
         // Start building the query
         let query = `SELECT RequestId, VisitorName, RequestDate, 
-                      FORMAT(CAST(MeetingDate AS DATE), 'dd-MM-yyyy') AS FormattedMeetingDate, 
-                      NoOfMembers, VisitorType, Status, AutoIncNo, VehicleInfo, Email, Mobile, Remarks 
-                      FROM dbo.RequestPass 
-                      WHERE OrgId = ${OrgId} 
-                      AND IsActive = 1`;
+                    FORMAT(CAST(MeetingDate AS DATE), 'dd-MM-yyyy') AS FormattedMeetingDate, 
+                    NoOfMembers, VisitorType, Status, AutoIncNo, VehicleInfo, Email, Mobile, Remarks 
+                    FROM dbo.RequestPass 
+                    WHERE OrgId = ${OrgId} 
+                    AND IsActive = 1`;
 
         // Dynamically adding filters based on the request body
         if (FromDate != 0) {
@@ -382,33 +382,48 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
 
 //#region Dashboard
 
+
 router.get('/VMSDashboard', async (req, res) => {
     try {
         const { OrgId } = req.query;
         
-        const RecentSuppliersQuery = `
+        /*const RecentSuppliersQuery = `
         select top 5 VisitorName, CAST(MeetingDate AS Date) as MeetingDate from dbo.RequestPass
         where OrgId = ${OrgId} AND Isactive = 1 AND VisitorType = 1
         ORDER BY RequestId DESC
-        `;
-        const RecentCustomersQuery = `
+        `;*/
+        /*const RecentCustomersQuery = `
         select top 5 VisitorName, CAST(MeetingDate AS Date) as MeetingDate from dbo.RequestPass
         where OrgId = ${OrgId} AND Isactive = 1 AND VisitorType = 2
         ORDER BY RequestId DESC
-        `;
-
-        const SuppliersCountQuery = `
+        `;*/
+        /*const SuppliersCountQuery = `
         SELECT COUNT(*) AS SuppliersCount
         FROM dbo.RequestPass 
         WHERE CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE) AND OrgId = ${OrgId}
         AND VisitorType = 1;
-        `;
+        `;*/
+        /*
         const CustomersCountQuery = `
         SELECT COUNT(*) AS CustomersCount
         FROM dbo.RequestPass 
         WHERE CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE) AND OrgId = ${OrgId}
         AND VisitorType = 2;
+        `;*/
+        const TodayActiveLaborCheckInsQuery= 
+        `
+        SELECT count(*) AS TodayActiveLaborCheckins FROM dbo.LaborQRPass 
+         WHERE  OrgId = ${OrgId} AND Date = CAST(GETDATE() AS DATE) AND CheckIn IS NOT NULL AND CheckOut IS NULL;
         `;
+        //console.log(TodayActiveLaborCheckInsQuery);
+        const TodayActiveVisitorsCheckInsQuery = `
+        SELECT count(*) AS TodayActiveVisitorsCheckins  FROM dbo.RequestPass 
+        WHERE OrgId = ${OrgId} AND CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE) 
+        AND CheckInTime IS NOT NULL AND CheckOutTime IS NULL;`;
+        //console.log(TodayActiveVisitorsCheckInsQuery);
+         const TodayVisitorsCountsQuery = `
+        select Count(*) TodayVisitorsCountQUery from dbo.RequestPass where OrgId = ${OrgId} AND 
+        CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE)`;
         const CLsCOuntQuery = `
         SELECT SUM(RequiredPasses) AS CLsCOunt
         FROM dbo.Contractors
@@ -418,31 +433,30 @@ router.get('/VMSDashboard', async (req, res) => {
         `;
         const MonthWiseVisitorsCountQuery = `
         SELECT DATENAME(MONTH, MeetingDate) AS [MonthName],COUNT(RequestId) AS [VisitorCount]
-        FROM [dbo].[RequestPass] WHERE YEAR(MeetingDate) = YEAR(GETDATE()) 
+        FROM [dbo].[RequestPass] WHERE OrgId = ${OrgId} AND YEAR(MeetingDate) = YEAR(GETDATE()) 
         GROUP BY DATENAME(MONTH, MeetingDate), MONTH(MeetingDate) 
         ORDER BY MONTH(MeetingDate); 
         `;
         const MonthWiseCLsCountQuery = `
         SELECT DATENAME(MONTH, [Date]) AS [MonthName],COUNT(Id) AS [CLsCount]
-        FROM [dbo].[LaborQRPass] WHERE YEAR(Date) = YEAR(GETDATE()) 
+        FROM [dbo].[LaborQRPass] WHERE OrgId = ${OrgId} AND YEAR(Date) = YEAR(GETDATE()) 
         GROUP BY DATENAME(MONTH, Date), MONTH(Date) 
         ORDER BY MONTH(Date); 
         `;
        
 
         const [
-            RecentSuppliers,
-            RecentCustomers,
-            TodaySuppliersCount,
-            TodayCustomersCount,
+          
+            TodayActiveLaborCheckIns,
+            TodayVisitorsCounts,
+            TodayActiveVisitorsCheckIns,
             TodayCLsCount,
             MonthWiseVisitorsCount,
             MonthWiseCLsCount
-        ] = await Promise.all([
-            dbUtility.executeQuery(RecentSuppliersQuery),  
-            dbUtility.executeQuery(RecentCustomersQuery),
-            dbUtility.executeQuery(SuppliersCountQuery),
-            dbUtility.executeQuery(CustomersCountQuery),
+        ] = await Promise.all([ 
+            dbUtility.executeQuery(TodayActiveLaborCheckInsQuery),
+            dbUtility.executeQuery(TodayVisitorsCountsQuery),
+            dbUtility.executeQuery(TodayActiveVisitorsCheckInsQuery ),
             dbUtility.executeQuery(CLsCOuntQuery),
             dbUtility.executeQuery(MonthWiseVisitorsCountQuery),
             dbUtility.executeQuery(MonthWiseCLsCountQuery)
@@ -450,10 +464,9 @@ router.get('/VMSDashboard', async (req, res) => {
            
         ]);
         res.json({
-            RecentSuppliers,
-            RecentCustomers,
-            TodaySuppliersCount,
-            TodayCustomersCount,
+            TodayActiveLaborCheckIns,
+            TodayVisitorsCounts,
+            TodayActiveVisitorsCheckIns,
             TodayCLsCount,
             MonthWiseVisitorsCount,
             MonthWiseCLsCount
@@ -463,6 +476,10 @@ router.get('/VMSDashboard', async (req, res) => {
     }
 });
 
+router.get('/getActiveCheckIns', (req, res) => {
+    const data = req.query; 
+    handleRecord(req, res, data, OperationEnums().LABORCHECKINS);
+});
 
 //#endregion Dashboard
 
