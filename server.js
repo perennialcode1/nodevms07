@@ -53,7 +53,6 @@ const contractorRoutes = require('./routes/contractorRoutes');
 const ReportRoutes = require('./routes/ReportService.js');
 const helmet = require('helmet');
 const cors = require('cors');
-const ReportRoutes = require('./routes/ReportService.js');
 
 const swaggerDocument = require('./swagger/swagger.json');
 
