@@ -50,12 +50,10 @@ const bodyParser = require('body-parser');
 const swaggerUi = require('swagger-ui-express');
 const emailRoutes = require('./routes/emailRoutes');
 const contractorRoutes = require('./routes/contractorRoutes');
-<<<<<<< HEAD
 const ReportRoutes = require('./routes/ReportService.js');
-=======
 const helmet = require('helmet');
 const cors = require('cors');
->>>>>>> bb36edc1fafc3f80807e31d68388ee1ce2e99143
+const ReportRoutes = require('./routes/ReportService.js');
 
 const swaggerDocument = require('./swagger/swagger.json');
 
@@ -87,26 +85,25 @@ app.use((err, req, res, next) => {
     res.status(500).json({ message: 'Internal Server Error' });
 });
 
-// Start Server
-<<<<<<< HEAD
-// app.listen(PORT, () => {
-//     console.log(`Server is running on http://localhost:${PORT}`);
-//     console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
-// });
-
-// app.listen(PORT, '192.168.1.6', () => {
-//     console.log(`Server is running on port ${PORT}`);
-//     console.log(`Swagger docs available at http://192.168.1.6:4000/api-docs`);
-// });
-//192.168.253.161
-
 const port = process.env.PORT || 3009;
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is running on port ${port}`);
+const host = '0.0.0.0'; // This makes the server accessible externally (from any IP)
+
+app.listen(port, host, () => {
+    console.log(`Server is running on http://${host}:${port}`);
+    console.log(`Swagger docs available at http://${host}:${port}/api-docs`);
 });
-=======
-app.listen(PORT, HOST, () => {
-    console.log(`Server is running on http://${HOST}:${PORT}`);
-    console.log(`Swagger docs available at http://${HOST}:${PORT}/api-docs`);
-});
->>>>>>> bb36edc1fafc3f80807e31d68388ee1ce2e99143
+
+
+// const port = process.env.PORT || 3009;
+// app.listen(port, '0.0.0.0', () => {
+//     console.log(`Server is running on port ${port}`);
+// });
+// app.listen(PORT, HOST, () => {
+//     console.log(`Server is running on http://${HOST}:${PORT}`);
+//     console.log(`Swagger docs available at http://${HOST}:${PORT}/api-docs`);
+// });
+
+// const port = process.env.PORT || 3009;
+// app.listen(port, '0.0.0.0', () => {
+//     console.log(`Server is running on port ${port}`);
+// });
