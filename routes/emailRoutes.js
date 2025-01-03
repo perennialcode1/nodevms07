@@ -5,6 +5,7 @@ const { handleRecord } = require('../helpers/RecordHandler.js');
 const { OperationEnums } = require('../helpers/utilityEnum.js');
 const exeQuery = require('../helpers/exeQuery');
 const dbUtility = require('../dbUtility');
+const { Console } = require('winston/lib/winston/transports/index.js');
 
 
 router.use(express.json());
@@ -15,7 +16,7 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: 'yaswanthpg9@gmail.com', 
-        pass: 'bigmixvfocxidpme'       // Your App Password
+        pass: 'sznn fsaj jawu gsjr'       // Your App Password
     }
 });
 
@@ -165,55 +166,70 @@ router.get('/getReqPass', (req, res) => {
     const data = req.query; 
     handleRecord(req, res, data, OperationEnums().GETREQPASS);
 });
-
+//#region filter service
 router.post('/getReqPasswithFilters', async (req, res) => {
     try {
-        // Destructuring parameters from request body
-        const { OrgId, FromDate, VisitorType, Status, AutoIncNo, ToDate } = req.body;
+        // Destructuring parameters from the request body
+        const { OrgId, FromDate, ToDate, VisitorType, Status, AutoIncNo, UserId, RoleId } = req.body;
 
-        // Start building the query
-        let query = `SELECT RequestId, VisitorName, RequestDate, 
-                    FORMAT(CAST(MeetingDate AS DATE), 'dd-MM-yyyy') AS FormattedMeetingDate, 
-                    NoOfMembers, VisitorType, Status, AutoIncNo, VehicleInfo, Email, Mobile, Remarks 
-                    FROM dbo.RequestPass 
-                    WHERE OrgId = ${OrgId} 
-                    AND IsActive = 1`;
+        // Validate OrgId
+        if (!OrgId) {
+            return res.status(400).json({ message: 'OrgId is required', Status: false });
+        }
 
-        // Dynamically adding filters based on the request body
+        // Start building the query string
+        let query = `
+            SELECT RequestId, VisitorName, RequestDate, CAST(MeetingDate AS DATE) AS MeetingDate,
+                   FORMAT(CAST(MeetingDate AS DATE), 'dd-MM-yyyy') AS FormattedMeetingDate, 
+                   NoOfMembers, VisitorType, Status, AutoIncNo, VehicleInfo, Email, Mobile, Remarks 
+            FROM dbo.RequestPass 
+            WHERE OrgId = ${OrgId} 
+            AND IsActive = 1`;
+
+        // Role-based filtering
+        if (RoleId === 4) { // Security
+            query += ` AND Status = 'APPROVED' AND MeetingDate = CAST(GETDATE() AS DATE)`;
+        } else if (RoleId === 2) { // HR
+            query += ` AND Status IN ('REJECTED', 'DRAFT')`;
+        } else if (RoleId === 3) { // Employee
+            query += ` AND CreatedBy = ${UserId}`;
+        }
+
+        // Adding optional filters dynamically
         if (FromDate != 0) {
-            query += ` AND CAST(MeetingDate AS DATE) BETWEEN '${FromDate}' AND '${ToDate}'`; // Filter for MeetingDate
+            query += ` AND CAST(MeetingDate AS DATE) BETWEEN '${FromDate}' AND '${ToDate}'`;
         }
         if (VisitorType != 0) {
-            query += ` AND VisitorType = ${VisitorType}`; // Filter for VisitorType
+            query += ` AND VisitorType = ${VisitorType}`;
         }
-
         if (Status != 0) {
-            query += ` AND Status = '${Status}'`; // Filter for Status
+            query += ` AND Status = '${Status}'`;
         }
-
         if (AutoIncNo != 0) {
-            query += ` AND AutoIncNo = '${AutoIncNo}'`; // Filter for AutoIncNo
+            query += ` AND AutoIncNo = '${AutoIncNo}'`;
         }
 
         // Append ORDER BY clause
         query += ` ORDER BY RequestId DESC`;
 
-        console.log('Generated Query:', query); // For debugging or logging the query
+        // Debugging: log the constructed query
+        console.log('Generated Query:', query);
 
-        // Execute query
+        // Execute query using the constructed query string
         const results = await dbUtility.executeQuery(query);
 
-        // Sending response based on results
+        // Send response
         if (results && results.length > 0) {
-            res.status(200).json(results);
+            return res.status(200).json(results);
         } else {
-            res.status(404).json({ message: 'No records found', Status: false });
+            return res.status(404).json({ message: 'No records found', Status: false });
         }
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ message: 'Error fetching data', Status: false });
+        return res.status(500).json({ message: 'Error fetching data', Status: false });
     }
 });
+
 
 
 
@@ -260,8 +276,9 @@ router.post('/PassApproval&Email', async (req, res) => {
         }
 
         // Check if email should be sent
-        if (Status.toLowerCase() === 'approve') {
+        if (Status.toLowerCase() === 'approved') {
             try {
+                //console.log('hi');
                 // Email options
                 const mailOptions = {
                     from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
@@ -343,7 +360,7 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
             // Update CheckInTime if it's NULL
             UPDTCheckTime = `
                 UPDATE dbo.RequestPass 
-                SET CheckInTime = '${currentTime}', 
+                SET CheckInTime = '${currentTime}', Status = 'CHECKIN', 
                     UpdatedBy = '${UserId}', 
                     UpdatedOn = dbo.GetISTTime() 
                 WHERE RequestId = '${record.RequestId}';
@@ -357,7 +374,7 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
             UPDTCheckTime = `
                 UPDATE dbo.RequestPass 
                 SET CheckOutTime = '${currentTime}', 
-                    Status = 'COMPLETED', 
+                    Status = 'PENDINGMOM', 
                     UpdatedBy = '${UserId}', 
                     UpdatedOn = dbo.GetISTTime() 
                 WHERE RequestId = '${record.RequestId}';
@@ -381,7 +398,6 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
 
 
 //#region Dashboard
-
 
 router.get('/VMSDashboard', async (req, res) => {
     try {
@@ -480,7 +496,6 @@ router.get('/getActiveCheckIns', (req, res) => {
     const data = req.query; 
     handleRecord(req, res, data, OperationEnums().LABORCHECKINS);
 });
-
 //#endregion Dashboard
 
 module.exports = router;
