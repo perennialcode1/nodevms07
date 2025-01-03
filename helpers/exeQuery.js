@@ -9,10 +9,10 @@ class exeQuery {
         FROM V_RoleMenu
         WHERE RoleId = ${JsonData.RoleId} AND (OrgId = ${JsonData.OrgId} OR OrgId = 9333);
         `;*/
-        const sqlQuery = `SELECT * FROM V_RoleMenu WHERE RoleId = ${JsonData.RoleId} AND OrgId = ${JsonData.OrgId} 
+        const sqlQuery = `SELECT * FROM V_RoleMenu WHERE RoleId = ${JsonData.RoleId} AND OrgId = ${JsonData.OrgId} AND IsActive = 1 
         AND EXISTS (SELECT 1 FROM RoleMenu WHERE OrgId =  ${JsonData.OrgId} AND RoleId = ${JsonData.RoleId})
         UNION ALL
-        SELECT * FROM V_RoleMenu WHERE RoleId = ${JsonData.RoleId}  AND OrgId = 9333 
+        SELECT * FROM V_RoleMenu WHERE RoleId = ${JsonData.RoleId}  AND OrgId = 9333 AND IsActive = 1
         AND NOT EXISTS (SELECT 1 FROM RoleMenu WHERE OrgId =  ${JsonData.OrgId} AND RoleId = ${JsonData.RoleId}) ORDER BY SortOrder;`;
         console.log(sqlQuery);
         dbUtility.executeQuery(sqlQuery)
