@@ -21,7 +21,8 @@ function OperationEnums() {
         GETROLES:19,
         RSECURSEL:20,
         GETREPORTHEAD:21,
-        LABORCHECKINS: 22
+        LABORCHECKINS: 22,
+        FRGTPASWRD:23,
     };
 
     return Operations;
