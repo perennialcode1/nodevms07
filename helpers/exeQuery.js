@@ -64,7 +64,7 @@ class exeQuery {
         if (!TotJson) {
             return callback(new Error('RoleSecurity is undefined'));
         }
-        const { orgid, RoleId, MenuId, IsChecked, CanWrite, CanDelete, CanExport, UpdatedBy } = TotJson;
+        const { orgid, RoleId, MenuId, IsChecked, CanWrite, CanDelete, CanExport, IsActive, UpdatedBy } = TotJson;
         console.log(TotJson);
 
         const sqlQuery = `
@@ -76,6 +76,7 @@ class exeQuery {
             @CanWrite = '${CanWrite}',
             @CanDelete = '${CanDelete}',
             @CanExport = '${CanExport}',
+            @IsActive =  '${IsActive}',
             @UpdatedBy = '${UpdatedBy}'
         `;
 
@@ -85,7 +86,6 @@ class exeQuery {
             .then(results => callback(null, results))
             .catch(callback);
     }
-
     //#region ManageRequestPass
     SpManageRequestPass(TotJson, callback) {
         if (!TotJson) {
