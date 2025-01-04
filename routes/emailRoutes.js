@@ -76,6 +76,11 @@ router.post('/POSTUsers', async (req, res)=>{
     handleRecord(req, res, data, OperationEnums().ADDUSER);
 });
 
+router.post('/forgotPassword', async (req, res)=>{
+    const data = req.body;
+    handleRecord(req, res, data, OperationEnums().FRGTPASWRD);
+});
+
 router.post('/UPDTUsers', async (req, res)=>{
     const data = req.body;
     handleRecord(req, res, data, OperationEnums().UPDTUSER);
@@ -367,8 +372,46 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
             `;
             // Execute the update query
              await dbUtility.executeQuery(UPDTCheckTime);
+             try {
+                //console.log('hi');
+                // Email options
+                const to = record.Email; // Assuming record contains email details
+                const Passno = record.AutoIncNo;
+                const subject = `Check-In Notification for Pass ${Passno}`;
+                const text = `Hello, your check-in time is recorded successfully for Pass ${Passno}.`;
+                const html = `<p>Hello,</p>
+                <p>Your check-in time for Pass is recorded successfully at <b>${currentTime}</b>.</p>
+                <p>Thank you,</p>
+                <p>VMS Cooperwind</p>`;
+
+
+                const mailOptions = {
+                    from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                    to: to,
+                    subject: subject,
+                    text: text,
+                    html: html
+                };
+
+                // Send the email
+                const info = await transporter.sendMail(mailOptions);
+                console.log('Email sent:', info.response);
+
+                return res.status(200).json({
+                    message: 'CheckInTime Updated and email sent successfully',
+                    Status: true,
+                    emailResponse: info.response
+                });
+            } catch (emailError) {
+                console.error('Error while sending email:', emailError);
+                return res.status(500).json({
+                    message: 'CheckInTime Updated, but email sending failed',
+                    Status: false,
+                    error: emailError.message
+                });
+            }
             // Success response
-            res.status(200).json({ message: 'CheckInTime updated successfully', time: currentTime });
+           // res.status(200).json({ message: 'CheckInTime updated successfully', time: currentTime });
         } else if (!record.CheckOutTime) {
             // Update CheckOutTime if it's NULL
             UPDTCheckTime = `
@@ -382,7 +425,45 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
             // Execute the update query
             await dbUtility.executeQuery(UPDTCheckTime);
             // Success response
-            res.status(200).json({ message: 'CheckOutTime updated successfully', time: currentTime });
+            try {
+                //console.log('hi');
+                // Email options
+                const to = record.Email; // Assuming record contains email details
+                const Passno = record.AutoIncNo;
+                const subject = `Check-Out Notification for Pass ${Passno}`;
+                const text = `Hello, your check-Out time is recorded successfully for Pass ${Passno}.`;
+                const html = `<p>Hello,</p>
+                <p>Your check-Out time for Pass is recorded successfully at <b>${currentTime}</b>.</p>
+                <p>Thank you,</p>
+                <p>VMS Cooperwind</p>`;
+
+
+                const mailOptions = {
+                    from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                    to: to,
+                    subject: subject,
+                    text: text,
+                    html: html
+                };
+
+                // Send the email
+                const info = await transporter.sendMail(mailOptions);
+                console.log('Email sent:', info.response);
+
+                return res.status(200).json({
+                    message: 'CheckOutTime Updated and email sent successfully',
+                    Status: true,
+                    emailResponse: info.response
+                });
+            } catch (emailError) {
+                console.error('Error while sending email:', emailError);
+                return res.status(500).json({
+                    message: 'CheckOutTime Updated, but email sending failed',
+                    Status: false,
+                    error: emailError.message
+                });
+            }
+            //res.status(200).json({ message: 'CheckOutTime updated successfully', time: currentTime });
         } else {
             // If both are not NULL, return QR Code expired
             return res.status(400).json({ error: 'QR Code expired' });
