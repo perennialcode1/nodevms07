@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const nodemailer = require('nodemailer');
 const router = express.Router();
 const { handleRecord } = require('../helpers/RecordHandler.js');
@@ -7,7 +8,7 @@ const exeQuery = require('../helpers/exeQuery');
 const dbUtility = require('../dbUtility');
 const { Console } = require('winston/lib/winston/transports/index.js');
 
-
+const upload = multer({ dest: 'uploads/' }); 
 router.use(express.json());
 
 
@@ -193,7 +194,7 @@ router.post('/getReqPasswithFilters', async (req, res) => {
 
         // Role-based filtering
         if (RoleId === 4) { // Security
-            query += ` AND Status = 'APPROVED' AND MeetingDate = CAST(GETDATE() AS DATE)`;
+            query += ` AND Status IN ('APPROVED','CHECKIN')  AND MeetingDate = CAST(GETDATE() AS DATE)`;
         } else if (RoleId === 2) { // HR
             query += ` AND Status IN ('REJECTED', 'DRAFT')`;
         } else if (RoleId === 3) { // Employee
@@ -242,10 +243,174 @@ router.get('/getReqPassById', (req, res) => {
     const data = req.query; 
     handleRecord(req, res, data, OperationEnums().GETREQPASSBYID);
 });
-router.post('/MOMSubmit', async (req, res)=>{
+/*
+router.post('/MOMSubmit', async (req, res) => {
     const data = req.body;
-    handleRecord(req, res, data, OperationEnums().MOMSUBMIT);
+    const { MOM, RequestId, UpdatedBy } = req.body;
+
+    if (!MOM || !RequestId || !UpdatedBy) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Handle record processing for MOM submission
+    //handleRecord(req, res, data, OperationEnums().MOMSUBMIT);
+
+    // SQL query to update MOM and Status in the database
+    const updateMOMQuery = `
+        UPDATE dbo.RequestPass 
+        SET MOM = '${MOM}', 
+            Status = 'COMPLETED', 
+            UpdatedBy = '${UpdatedBy}', 
+            UpdatedOn = dbo.GetISTTime()
+        WHERE RequestId = '${RequestId}';
+    `;
+    
+    try {
+        const rowsAffected = await dbUtility.executeQueryrowsAffected(updateMOMQuery);
+
+        // Check if any rows were affected (i.e., update was successful)
+        if (rowsAffected > 0) {
+            const GetPassQuery = `
+                SELECT * 
+                FROM dbo.RequestPass 
+                WHERE RequestId = ${RequestId}
+            `;
+            
+            const recordData = await dbUtility.executeQuery(GetPassQuery);
+            const record = recordData[0];
+
+            // Email options if MOM is updated
+            const to = record.Email;
+            const Passno = record.AutoIncNo;
+            const subject = `MOM Submission for Pass ${Passno}`;
+            const text = `MOM submission for Pass ${Passno}.`;
+            const html = `
+                <p>MOM Submission,</p>
+                <p>${MOM}.</p>
+                <p>Thank you,</p>
+                <p>VMS Cooperwind</p>
+            `;
+
+            const mailOptions = {
+                from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                to: to,
+                subject: subject,
+                text: text,
+                html: html
+            };
+
+            // Send the email
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Email sent:', info.response);
+
+            return res.status(200).json({
+                message: 'MOM Updated and email sent successfully',
+                Status: true,
+                emailResponse: info.response
+            });
+        } else {
+            return res.status(200).json({
+                message: 'MOM not updated, no email sent',
+                Status: false
+            });
+        }
+    } catch (error) {
+        console.error('Error while updating MOM or sending email:', error);
+        return res.status(500).json({
+            message: 'Error while updating MOM or sending email',
+            Status: false,
+            error: error.message
+        });
+    }
+});*/
+
+router.post('/MOMSubmit', async (req, res) => {
+    const data = req.body;
+    const { MOM, RequestId, UpdatedBy } = req.body;
+
+    if (!MOM || !RequestId || !UpdatedBy) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // SQL query to update MOM and Status in the database
+    const updateMOMQuery = `
+        UPDATE dbo.RequestPass 
+        SET MOM = '${MOM}', 
+            Status = 'COMPLETED', 
+            UpdatedBy = '${UpdatedBy}', 
+            UpdatedOn = dbo.GetISTTime()
+        WHERE RequestId = '${RequestId}';
+    `;
+
+    try {
+        const rowsAffected = await dbUtility.executeQueryrowsAffected(updateMOMQuery);
+
+        // Check if any rows were affected (i.e., update was successful)
+        if (rowsAffected > 0) {
+            res.status(200).json({
+                message: 'MOM Updated successfully. Email will be sent shortly.',
+                Status: true
+            });
+
+            // Email sending logic in the background
+            setImmediate(async () => {
+                try {
+                    const GetPassQuery = `
+                        SELECT * 
+                        FROM dbo.RequestPass 
+                        WHERE RequestId = '${RequestId}'
+                    `;
+
+                    const recordData = await dbUtility.executeQuery(GetPassQuery);
+                    const record = recordData[0];
+
+                    if (record && record.Email) {
+                        const to = record.Email;
+                        const Passno = record.AutoIncNo;
+                        const subject = `MOM Submission for Pass ${Passno}`;
+                        const text = `MOM submission for Pass ${Passno}.`;
+                        const html = `
+                            <p>MOM Submission,</p>
+                            <p>${MOM}.</p>
+                            <p>Thank you,</p>
+                            <p>VMS Cooperwind</p>
+                        `;
+
+                        const mailOptions = {
+                            from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                            to: to,
+                            subject: subject,
+                            text: text,
+                            html: html
+                        };
+
+                        // Send the email
+                        const info = await transporter.sendMail(mailOptions);
+                        console.log('Email sent:', info.response);
+                    } else {
+                        console.warn('No email found for RequestId:', RequestId);
+                    }
+                } catch (error) {
+                    console.error('Error while fetching record or sending email:', error);
+                }
+            });
+        } else {
+            res.status(200).json({
+                message: 'MOM not updated, no email will be sent',
+                Status: false
+            });
+        }
+    } catch (error) {
+        console.error('Error while updating MOM:', error);
+        res.status(500).json({
+            message: 'Error while updating MOM',
+            Status: false,
+            error: error.message
+        });
+    }
 });
+
+
 router.post('/AttendeInActive', async (req, res) => {
     const data = req.body; 
     handleRecord(req, res, data, OperationEnums().ADETAIL);
@@ -255,25 +420,42 @@ router.post('/AttendeInActive', async (req, res) => {
 
 
 //region PassApproval&Email
-router.post('/PassApproval&Email', async (req, res) => {
-    const { RequestId, Status, UserId, to, subject, text, html } = req.body;
+const fs = require('fs');
+/*
+router.post('/PassApproval&Email', upload.single('file'), async (req, res) => {
+    const { RequestId, Status, UserId, to, html, text } = req.body;
+    const subject = 'Welcome to CooperWind India,';
 
     // Validate required fields
-    if (!RequestId || !Status || !UserId) {
+    if (!RequestId || !UserId) {
         return res.status(400).json({ message: 'Missing required fields', Status: false });
     }
+
+    // Check if an attachment was uploaded
+    const file = req.file;
+    if (!file) {
+        return res.status(400).json({ message: 'Attachment file is required', Status: false });
+    }
+    const GetPassQuery = `
+    select RP.*,US.Email as Useremail from dbo.RequestPass RP Inner join dbo.Users US ON 
+RP.CreatedBy = US.Id 
+    WHERE RequestId = ${RequestId} 
+    `;
+    console.log(GetPassQuery);
+
+    const recordData = await dbUtility.executeQuery(GetPassQuery);
+    const record = recordData[0]; 
 
     // SQL query to update status
     const updateStatusQuery = `
         UPDATE dbo.RequestPass
-        SET Status = '${Status}',
+        SET Status = 'APPROVED',
             UpdatedBy = '${UserId}',
             UpdatedOn = dbo.GetISTTime()
         WHERE RequestId = '${RequestId}'
     `;
 
     try {
-        // Execute the update query
         const rowsAffected = await dbUtility.executeQueryrowsAffected(updateStatusQuery);
 
         if (rowsAffected === 0) {
@@ -281,51 +463,201 @@ router.post('/PassApproval&Email', async (req, res) => {
         }
 
         // Check if email should be sent
-        if (Status.toLowerCase() === 'approved') {
+        if (Status?.toLowerCase() === 'approved') {
             try {
-                //console.log('hi');
-                // Email options
                 const mailOptions = {
-                    from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                    from: '"Gireesh" <yaswanthpg9@gmail.com>',
                     to: to,
                     subject: subject,
                     text: text,
-                    html: html
+                    html: html,
+                    attachments: [
+                        {
+                            filename: file.originalname,
+                            path: file.path,
+                        },
+                    ],
                 };
 
-                // Send the email
                 const info = await transporter.sendMail(mailOptions);
                 console.log('Email sent:', info.response);
+
+                // Clean up temporary file
+                fs.unlink(file.path, (err) => {
+                    if (err) console.error('Failed to delete temporary file:', err);
+                });
 
                 return res.status(200).json({
                     message: 'Status updated and email sent successfully',
                     Status: true,
-                    emailResponse: info.response
+                    emailResponse: info.response,
                 });
             } catch (emailError) {
                 console.error('Error while sending email:', emailError);
                 return res.status(500).json({
                     message: 'Status updated, but email sending failed',
                     Status: false,
-                    error: emailError.message
+                    error: emailError.message,
                 });
             }
         }
 
-        // If no email is sent, respond with status update success
         res.status(200).json({
             message: 'Status updated successfully',
-            Status: true
+            Status: true,
         });
     } catch (dbError) {
         console.error('Database error:', dbError);
         res.status(500).json({
             message: 'Error while updating status',
             Status: false,
-            error: dbError.message
+            error: dbError.message,
         });
     }
+});*/
+
+
+
+router.post('/PassApproval&Email', upload.single('file'), async (req, res) => {
+    const { RequestId, Status, UserId } = req.body;
+
+    // Validate required fields
+    if (!RequestId || !UserId) {
+        return res.status(400).json({ message: 'Missing required fields', Status: false });
+    }
+
+    // Check if an attachment was uploaded
+    const file = req.file;
+    if (!file) {
+        return res.status(400).json({ message: 'Attachment file is required', Status: false });
+    }
+
+    const GetPassQuery = `
+        SELECT RP.*, US.Email AS UserEmail
+        FROM dbo.RequestPass RP
+        INNER JOIN dbo.Users US ON RP.CreatedBy = US.Id
+        WHERE RequestId = ${RequestId};
+    `;
+
+    try {
+        const recordData = await dbUtility.executeQuery(GetPassQuery);
+        const record = recordData[0];
+        if (!record) {
+            return res.status(404).json({ message: 'Request record not found', Status: false });
+        }
+
+        // Update status query
+        const updateStatusQuery = `
+            UPDATE dbo.RequestPass
+            SET Status = 'APPROVED',
+                UpdatedBy = '${UserId}',
+                UpdatedOn = dbo.GetISTTime()
+            WHERE RequestId = '${RequestId}';
+        `;
+        const rowsAffected = await dbUtility.executeQueryrowsAffected(updateStatusQuery);
+
+        if (rowsAffected === 0) {
+            return res.status(200).json({ message: 'Status not updated', Status: false });
+        }
+
+        // Respond to the client immediately
+        res.status(200).json({
+            message: 'Status updated successfully',
+            Status: true,
+        });
+
+        // If the status is approved, proceed to send the email in the background
+        if (Status?.toLowerCase() === 'approved') {
+            // Prepare email content
+            const subject = 'Welcome to CooperWind India';
+            const htmlContent = `
+                <p>Dear ${record.VisitorName},</p>
+                <p>We are pleased to welcome you to the CWI facility, a leading manufacturer of Tower Internals. 
+                We appreciate your interest in learning more about our operations and look forward to sharing our facilities with you.</p>
+                <p><strong>Health and Safety:</strong></p>
+                <ul>
+                    <li>Report to the reception desk upon arrival for your badge and safety briefing.</li>
+                    <li>Wear closed-toe shoes and avoid loose clothing.</li>
+                    <li>Follow instructions from staff and supervisors.</li>
+                </ul>
+                <p><strong>Schedule:</strong><br>Date: ${record.MeetingDate}</p>
+                <p><strong>Additional Information:</strong></p>
+                <ul>
+                    <li>Parking: Available on-site, follow signs to visitor parking.</li>
+                    <li>Restrooms: Located on the North side of the factory.</li>
+                    <li>Photography: Refrain from taking photos without permission.</li>
+                </ul>
+                <p>If you have specific requests or requirements, let us know in advance. Your visit will be informative, safe, and enjoyable.</p>
+                <p>We look forward to welcoming you soon!</p>
+                <p>Best regards,<br>CWI Admin</p>
+            `;
+            const textContent = `
+                Dear ${record.VisitorName},
+
+                We are pleased to welcome you to the CWI facility, a leading manufacturer of Tower Internals. We appreciate your interest in learning more about our operations and look forward to sharing our facilities with you.
+
+                Health and Safety:
+                - Report to the reception desk upon arrival for your badge and safety briefing.
+                - Wear closed-toe shoes and avoid loose clothing.
+                - Follow instructions from staff and supervisors.
+
+                Schedule:
+                Date: ${record.MeetingDate}
+
+                Additional Information:
+                - Parking: Available on-site, follow signs to visitor parking.
+                - Restrooms: Located on the North side of the factory.
+                - Photography: Refrain from taking photos without permission.
+
+                If you have specific requests or requirements, let us know in advance. Your visit will be informative, safe, and enjoyable.
+
+                We look forward to welcoming you soon!
+
+                Best regards,
+                CWI Admin
+            `;
+
+            const mailOptions = {
+                from: '"Gireesh" <yaswanthpg9@gmail.com>',
+                to: record.Email,
+                subject: subject,
+                text: textContent,
+                html: htmlContent,
+                attachments: [
+                    {
+                        filename: file.originalname,
+                        path: file.path,
+                    },
+                ],
+            };
+
+            try {
+                const info = await transporter.sendMail(mailOptions);
+                console.log('Email sent:', info.response);
+
+                // Clean up temporary file
+                fs.unlink(file.path, (err) => {
+                    if (err) console.error('Failed to delete temporary file:', err);
+                });
+            } catch (emailError) {
+                console.error('Email sending failed:', emailError);
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+
+        // Send the error response only if response isn't already sent
+        if (!res.headersSent) {
+            res.status(500).json({
+                message: 'An error occurred',
+                Status: false,
+                error: error.message,
+            });
+        }
+    }
 });
+
+
 
 //#endregion PassApproval&email
 
@@ -376,13 +708,26 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
                 //console.log('hi');
                 // Email options
                 const to = record.Email; // Assuming record contains email details
-                const Passno = record.AutoIncNo;
-                const subject = `Check-In Notification for Pass ${Passno}`;
-                const text = `Hello, your check-in time is recorded successfully for Pass ${Passno}.`;
-                const html = `<p>Hello,</p>
-                <p>Your check-in time for Pass is recorded successfully at <b>${currentTime}</b>.</p>
-                <p>Thank you,</p>
-                <p>VMS Cooperwind</p>`;
+                //const Passno = record.AutoIncNo;
+                const subject = `Check-in Successfully at CWI!`;
+
+                const text = `Dear Visitor,
+                
+                We're glad to confirm that you've checked-in successfully.
+                
+                During your visit, if you require any assistance or have questions, please don't hesitate to reach out to us. We're here to ensure your visit is comfortable and productive.
+                
+                Thank you for visiting us, and we look forward to making your visit memorable!
+                
+                Best regards,
+                CWI Admin`;
+                
+                const html = `<p>Dear Visitor</p>
+                <p>We're glad to confirm that you've check-in successfully.</p>
+                <p>During your visit, if you require any assistance or have questions, please don't hesitate to reach out to us. We're here to ensure your visit is comfortable and productive.</p>
+                <p>Thank you for visiting us, and we look forward to making your visit memorable!</p>
+                <p>Best regards,<br>CWI Admin</p>`;
+                
 
 
                 const mailOptions = {
@@ -430,12 +775,25 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
                 // Email options
                 const to = record.Email; // Assuming record contains email details
                 const Passno = record.AutoIncNo;
-                const subject = `Check-Out Notification for Pass ${Passno}`;
-                const text = `Hello, your check-Out time is recorded successfully for Pass ${Passno}.`;
-                const html = `<p>Hello,</p>
-                <p>Your check-Out time for Pass is recorded successfully at <b>${currentTime}</b>.</p>
-                <p>Thank you,</p>
-                <p>VMS Cooperwind</p>`;
+                const subject = `Thank you for visiting CWI!`;
+
+                const text = `Dear Visitor,
+
+                We hope you enjoyed your visit to CWI on ${record.MeetingDate}.
+
+                If you have any questions or need further information, please don't hesitate to contact us. We'd be more than happy to assist you.
+
+                Thank you again for visiting, and we look forward to welcoming you back soon!
+
+                Best regards,
+                CWI Admin`;
+
+                const html = `<p>Dear ${record.VisitorName},</p>
+                <p>We hope you enjoyed your visit to CWI on <b>${record.MeetingDate}</b>.</p>
+                <p>If you have any questions or need further information, please don't hesitate to contact us. We'd be more than happy to assist you.</p>
+                <p>Thank you again for visiting, and we look forward to welcoming you back soon!</p>
+                <p>Best regards,<br>CWI Admin</p>`;
+
 
 
                 const mailOptions = {
