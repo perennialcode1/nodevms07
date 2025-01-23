@@ -127,7 +127,7 @@ router.post('/send-email', async (req, res) => {
     
     // Email options
     const mailOptions = {
-        from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+        from: '"CWI" <info@cooperwindindia.in>', // Sender's name and email
         to: to,                                     // Recipient email
         subject: subject,                           // Email subject
         text: text,                                 // Plain text body
