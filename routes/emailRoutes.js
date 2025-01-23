@@ -16,8 +16,8 @@ router.use(express.json());
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'yaswanthpg9@gmail.com', 
-        pass: 'sznn fsaj jawu gsjr'       // Your App Password
+        user: 'info@cooperwindindia.in', 
+        pass: 'hgxv kbnt vuxp uwaz'       // Your App Password
     }
 });
 
