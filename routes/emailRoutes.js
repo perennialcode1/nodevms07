@@ -377,7 +377,7 @@ router.post('/MOMSubmit', async (req, res) => {
                         `;
 
                         const mailOptions = {
-                            from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                            from: '"CWI" <info@cooperwindindia.in>', // Sender's name and email
                             to: to,
                             subject: subject,
                             text: text,
@@ -618,7 +618,7 @@ router.post('/PassApproval&Email', upload.single('file'), async (req, res) => {
             `;
 
             const mailOptions = {
-                from: '"Gireesh" <yaswanthpg9@gmail.com>',
+                from: '"CWI" <info@cooperwindindia.in>',
                 to: record.Email,
                 subject: subject,
                 text: textContent,
@@ -731,7 +731,7 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
 
 
                 const mailOptions = {
-                    from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                    from: '"CWI" <info@cooperwindindia.in>', // Sender's name and email
                     to: to,
                     subject: subject,
                     text: text,
@@ -797,7 +797,7 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
 
 
                 const mailOptions = {
-                    from: '"Gireesh" <yaswanthpg9@gmail.com>', // Sender's name and email
+                    from: '"CWI" <info@cooperwindindia.in>', // Sender's name and email
                     to: to,
                     subject: subject,
                     text: text,
