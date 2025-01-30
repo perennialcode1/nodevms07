@@ -662,7 +662,98 @@ router.post('/PassApproval&Email', upload.single('file'), async (req, res) => {
 //#endregion PassApproval&email
 
 //#region QrCheckin
+router.post('/QrCheckinOrCheckOut', async (req, res) => {
+    try {
+        const { OrgId, IncNo, UserId, currentTime } = req.body;
+        if (!OrgId || !IncNo || !UserId || !currentTime) 
+            return res.status(400).json({ error: 'Invalid input data' });
 
+        const GetPassQuery = `
+            SELECT RP.*, Us.Email AS EmpEmail, Us.Name 
+            FROM dbo.RequestPass RP 
+            INNER JOIN dbo.Users Us ON RP.CreatedBy = Us.Id
+            WHERE RP.OrgId = ${OrgId} 
+              AND AutoIncNo = '${IncNo}' 
+              AND CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE);
+        `;
+
+        const recordData = await dbUtility.executeQuery(GetPassQuery);
+        if (!recordData.length) return res.status(404).json({ error: 'No active record found' });
+
+        const record = recordData[0];
+        let updateQuery, subject, text, html, empSubject, empText, empHtml;
+
+        if (!record.CheckInTime) {
+            updateQuery = `
+                UPDATE dbo.RequestPass 
+                SET CheckInTime = '${currentTime}', Status = 'CHECKIN', 
+                    UpdatedBy = '${UserId}', UpdatedOn = dbo.GetISTTime() 
+                WHERE RequestId = '${record.RequestId}';
+            `;
+            subject = `Check-in Successfully at CWI!`;
+            text = `Dear Visitor,
+                
+                We're glad to confirm that you've checked-in successfully.
+                
+                During your visit, if you require any assistance or have questions, please don't hesitate to reach out to us. We're here to ensure your visit is comfortable and productive.
+                
+                Thank you for visiting us, and we look forward to making your visit memorable!
+                
+                Best regards,
+                CWI Admin`;
+                
+            html = `<p>Dear Visitor</p>
+                <p>We're glad to confirm that you've check-in successfully.</p>
+                <p>During your visit, if you require any assistance or have questions, please don't hesitate to reach out to us. We're here to ensure your visit is comfortable and productive.</p>
+                <p>Thank you for visiting us, and we look forward to making your visit memorable!</p>
+                <p>Best regards,<br>CWI Admin</p>`;
+            empSubject = `Visitor Checked-in at CWI!`;
+            empText = `Dear Employee, Visitor ${record.VisitorName} just checked in at our industry premises.`;
+            empHtml = `<p>Dear Employee,</p><p>Visitor ${record.VisitorName} just checked in at our industry premises.</p>`;
+        } else if (!record.CheckOutTime) {
+            updateQuery = `
+                UPDATE dbo.RequestPass 
+                SET CheckOutTime = '${currentTime}', Status = 'PENDINGMOM', 
+                    UpdatedBy = '${UserId}', UpdatedOn = dbo.GetISTTime() 
+                WHERE RequestId = '${record.RequestId}';
+            `;
+            subject = `Thank you for visiting CWI!`;
+            text = `Dear Visitor,
+
+                We hope you enjoyed your visit to CWI on ${record.MeetingDate}.
+
+                If you have any questions or need further information, please don't hesitate to contact us. We'd be more than happy to assist you.
+
+                Thank you again for visiting, and we look forward to welcoming you back soon!
+
+                Best regards,
+                CWI Admin`;
+
+                html = `<p>Dear ${record.VisitorName},</p>
+                <p>We hope you enjoyed your visit to CWI on <b>${record.MeetingDate}</b>.</p>
+                <p>If you have any questions or need further information, please don't hesitate to contact us. We'd be more than happy to assist you.</p>
+                <p>Thank you again for visiting, and we look forward to welcoming you back soon!</p>
+                <p>Best regards,<br>CWI Admin</p>`;
+        } else {
+            return res.status(400).json({ error: 'QR Code expired' });
+        }
+
+        await dbUtility.executeQuery(updateQuery);
+        try {
+            await transporter.sendMail({ from: '"CWI" <info@cooperwindindia.in>', to: record.Email, subject, text, html });
+            if (empSubject) {
+                await transporter.sendMail({ from: '"CWI" <info@cooperwindindia.in>', to: record.EmpEmail, subject: empSubject, text: empText, html: empHtml });
+            }
+            return res.status(200).json({ message: 'Update successful, email sent', Status: true });
+        } catch (emailError) {
+            return res.status(500).json({ message: 'Update successful, but email failed', Status: false, error: emailError.message });
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/*
 router.post('/QrCheckinOrCheckOut', async (req, res) => {
     try {
         const { OrgId, IncNo, UserId, currentTime } = req.body;
@@ -831,7 +922,7 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
+*/
 
 //#endregion QrCheckin
 
