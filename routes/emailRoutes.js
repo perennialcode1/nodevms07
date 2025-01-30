@@ -708,8 +708,8 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
                 <p>Thank you for visiting us, and we look forward to making your visit memorable!</p>
                 <p>Best regards,<br>CWI Admin</p>`;
             empSubject = `Visitor Checked-in at CWI!`;
-            empText = `Dear Employee, Visitor ${record.VisitorName} just checked in at our industry premises.`;
-            empHtml = `<p>Dear Employee,</p><p>Visitor ${record.VisitorName} just checked in at our industry premises.</p>`;
+            empText = `Your Visitor ${record.VisitorName} has checked in. Please be ready for the meeting and have the agenda prepared.`;
+            empHtml = `<p>Your Visitor ${record.VisitorName} has checked in. Please be ready for the meeting and have the agenda prepared.</p>`;
         } else if (!record.CheckOutTime) {
             updateQuery = `
                 UPDATE dbo.RequestPass 
