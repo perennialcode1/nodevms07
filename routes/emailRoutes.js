@@ -676,13 +676,13 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
               AND AutoIncNo = '${IncNo}' 
               AND CAST(MeetingDate AS DATE) = CAST(GETDATE() AS DATE);
         `;
-
+        console.log(GetPassQuery);
         const recordData = await dbUtility.executeQuery(GetPassQuery);
         if (!recordData.length) return res.status(404).json({ error: 'No active record found' });
 
         const record = recordData[0];
         let updateQuery, subject, text, html, empSubject, empText, empHtml;
-
+        let responseMessage = '';
         if (!record.CheckInTime) {
             updateQuery = `
                 UPDATE dbo.RequestPass 
@@ -710,6 +710,7 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
             empSubject = `Visitor Checked-in at CWI!`;
             empText = `Your Visitor ${record.VisitorName} has checked in. Please be ready for the meeting and have the agenda prepared.`;
             empHtml = `<p>Your Visitor ${record.VisitorName} has checked in. Please be ready for the meeting and have the agenda prepared.</p>`;
+            responseMessage = 'Check-in time updated and email sent successfully';
         } else if (!record.CheckOutTime) {
             updateQuery = `
                 UPDATE dbo.RequestPass 
@@ -734,7 +735,8 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
                 <p>If you have any questions or need further information, please don't hesitate to contact us. We'd be more than happy to assist you.</p>
                 <p>Thank you again for visiting, and we look forward to welcoming you back soon!</p>
                 <p>Best regards,<br>CWI Admin</p>`;
-        } else {
+            responseMessage = 'Check-out time updated and email sent successfully';
+            } else {
             return res.status(400).json({ error: 'QR Code expired' });
         }
 
@@ -744,7 +746,9 @@ router.post('/QrCheckinOrCheckOut', async (req, res) => {
             if (empSubject) {
                 await transporter.sendMail({ from: '"CWI" <info@cooperwindindia.in>', to: record.EmpEmail, subject: empSubject, text: empText, html: empHtml });
             }
-            return res.status(200).json({ message: 'Update successful, email sent', Status: true });
+            return res.status(200).json({ message: responseMessage, Status: true });
+            //return res.status(200).json({ message: 'CheckOutTime Updated and email sent successfully', Status: true });
+            
         } catch (emailError) {
             return res.status(500).json({ message: 'Update successful, but email failed', Status: false, error: emailError.message });
         }
